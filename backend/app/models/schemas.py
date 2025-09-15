@@ -2,14 +2,16 @@
 Pydantic models for API request/response validation
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class EventType(str, Enum):
     """Types of events in the timeline"""
+
     MARKET_DATA = "market_data"
     SEC_FILING = "sec_filing"
     NEWS = "news"
@@ -17,6 +19,7 @@ class EventType(str, Enum):
 
 class ReportStatus(str, Enum):
     """Status of AI-generated reports"""
+
     DRAFT = "draft"
     UNDER_REVIEW = "under_review"
     PUBLISHED = "published"
@@ -24,6 +27,7 @@ class ReportStatus(str, Enum):
 
 class FilingType(str, Enum):
     """Types of SEC filings"""
+
     FORM_10K = "10-K"
     FORM_10Q = "10-Q"
     FORM_8K = "8-K"
@@ -47,7 +51,7 @@ class Stock(StockBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
@@ -72,7 +76,7 @@ class MarketData(MarketDataBase):
     id: int
     stock_id: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -96,7 +100,7 @@ class SecFiling(SecFilingBase):
     id: int
     stock_id: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -121,7 +125,7 @@ class NewsArticleCreate(NewsArticleBase):
 class NewsArticle(NewsArticleBase):
     id: int
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -129,10 +133,15 @@ class NewsArticle(NewsArticleBase):
 # Report models
 class ReportRequest(BaseModel):
     """Request to generate an AI report"""
+
     stock_symbol: str = Field(..., min_length=1, max_length=10)
     event_date: Optional[datetime] = None
     analysis_type: str = "correlation_analysis"
-    include_sources: List[EventType] = [EventType.MARKET_DATA, EventType.SEC_FILING, EventType.NEWS]
+    include_sources: List[EventType] = [
+        EventType.MARKET_DATA,
+        EventType.SEC_FILING,
+        EventType.NEWS,
+    ]
 
 
 class ReportBase(BaseModel):
@@ -154,13 +163,14 @@ class Report(ReportBase):
     stock_id: int
     generated_at: datetime
     published_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
 
 class ReportJob(BaseModel):
     """Response for async report generation"""
+
     job_id: str
     status: str
     message: str
@@ -169,6 +179,7 @@ class ReportJob(BaseModel):
 
 class ReportJobStatus(BaseModel):
     """Status check for report generation job"""
+
     job_id: str
     status: str  # pending, in_progress, completed, failed
     progress: int = Field(0, ge=0, le=100)
@@ -194,7 +205,7 @@ class ReportReview(ReportReviewBase):
     report_id: int
     reviewer_id: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -219,7 +230,7 @@ class TimelineEvent(TimelineEventBase):
     source_id: int
     source_table: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -227,6 +238,7 @@ class TimelineEvent(TimelineEventBase):
 # Response models
 class HealthCheck(BaseModel):
     """Health check response"""
+
     status: str
     timestamp: datetime
     version: str
@@ -237,6 +249,7 @@ class HealthCheck(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response model"""
+
     detail: str
     error: bool = True
     timestamp: datetime = Field(default_factory=datetime.now)

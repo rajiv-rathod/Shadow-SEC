@@ -2,13 +2,15 @@
 Health check router for system monitoring
 """
 
+import logging
+from datetime import datetime
+
+import redis
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from backend.app.core.database import get_db
 from backend.app.models.schemas import HealthCheck
-from datetime import datetime
-import redis
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,38 +29,45 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         database_status = "unhealthy"
-    
+
     # Check Redis connectivity
     try:
         from backend.app.core.config import settings
+
         r = redis.from_url(settings.REDIS_URL)
         r.ping()
         redis_status = "healthy"
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
         redis_status = "unhealthy"
-    
+
     # Check external services
     services = {
-        "gemini_api": "configured" if getattr(settings, 'GEMINI_API_KEY') else "not_configured",
-        "finnhub_api": "configured" if getattr(settings, 'FINNHUB_API_KEY') else "not_configured",
-        "sec_api": "configured" if getattr(settings, 'SEC_API_KEY') else "not_configured"
+        "gemini_api": (
+            "configured" if getattr(settings, "GEMINI_API_KEY") else "not_configured"
+        ),
+        "finnhub_api": (
+            "configured" if getattr(settings, "FINNHUB_API_KEY") else "not_configured"
+        ),
+        "sec_api": (
+            "configured" if getattr(settings, "SEC_API_KEY") else "not_configured"
+        ),
     }
-    
+
     # Determine overall status
     overall_status = "healthy"
     if database_status == "unhealthy" or redis_status == "unhealthy":
         overall_status = "unhealthy"
     elif any(status == "not_configured" for status in services.values()):
         overall_status = "degraded"
-    
+
     return HealthCheck(
         status=overall_status,
         timestamp=datetime.now(),
         version="1.0.0",
         database=database_status,
         redis=redis_status,
-        services=services
+        services=services,
     )
 
 
@@ -71,7 +80,7 @@ async def database_health(db: Session = Depends(get_db)):
         return {
             "status": "healthy",
             "timestamp": datetime.now(),
-            "database_version": version
+            "database_version": version,
         }
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -83,13 +92,14 @@ async def redis_health():
     """Specific Redis health check"""
     try:
         from backend.app.core.config import settings
+
         r = redis.from_url(settings.REDIS_URL)
         info = r.info()
         return {
             "status": "healthy",
             "timestamp": datetime.now(),
             "redis_version": info.get("redis_version"),
-            "connected_clients": info.get("connected_clients")
+            "connected_clients": info.get("connected_clients"),
         }
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
