@@ -11,9 +11,14 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.database import get_db
-from backend.app.models.schemas import (Report, ReportCreate, ReportJob,
-                                        ReportJobStatus, ReportRequest,
-                                        TimelineEvent)
+from backend.app.models.schemas import (
+    Report,
+    ReportCreate,
+    ReportJob,
+    ReportJobStatus,
+    ReportRequest,
+    TimelineEvent,
+)
 from backend.app.schemas.models import Report as ReportModel
 from backend.app.schemas.models import Stock as StockModel
 from backend.app.services.ai_service import AIService

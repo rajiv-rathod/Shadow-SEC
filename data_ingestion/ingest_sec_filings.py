@@ -10,11 +10,11 @@ import sys
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-import requests
-from bs4 import BeautifulSoup
-
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import requests
+from bs4 import BeautifulSoup
 
 from backend.app.core.config import settings
 from backend.app.core.database import SessionLocal, engine

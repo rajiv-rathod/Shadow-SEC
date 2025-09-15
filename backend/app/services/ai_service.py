@@ -74,8 +74,8 @@ class AIService:
             Formatted prompt string for AI analysis
         """
         prompt = """
-You are an impartial financial analyst for Shadow SEC, an open-source financial watchdog. 
-Your role is to analyze market data, SEC filings, and news to identify potential correlations 
+You are an impartial financial analyst for Shadow SEC, an open-source financial watchdog.
+Your role is to analyze market data, SEC filings, and news to identify potential correlations
 and anomalies. You must remain neutral and factual.
 
 IMPORTANT DISCLAIMERS TO INCLUDE:
@@ -260,8 +260,8 @@ Analysis Summary for {stock_symbol}:
 - SEC filings reviewed: {len(data.get('sec_filings', []))}
 - News articles processed: {len(data.get('news', []))}
 
-This mock report indicates that the system is operational but AI analysis 
-is currently unavailable. Please configure the Gemini API key to enable 
+This mock report indicates that the system is operational but AI analysis
+is currently unavailable. Please configure the Gemini API key to enable
 full AI-powered correlation analysis.
 
 IMPORTANT: This is not financial advice and should not be used for investment decisions.
