@@ -1,0 +1,185 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow_sec_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Set up environment variables
+      run: |
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/shadow_sec_test" >> $GITHUB_ENV
+        echo "REDIS_URL=redis://localhost:6379/0" >> $GITHUB_ENV
+        echo "SECRET_KEY=test-secret-key" >> $GITHUB_ENV
+        echo "ENVIRONMENT=test" >> $GITHUB_ENV
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        python -m pytest --tb=short -v
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow_sec_test
+        REDIS_URL: redis://localhost:6379/0
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false
+    
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Python linting tools
+      run: |
+        pip install flake8 black isort
+    
+    - name: Lint Python code
+      run: |
+        flake8 backend/ data_ingestion/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 backend/ data_ingestion/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check Python formatting
+      run: |
+        black --check backend/ data_ingestion/
+        isort --check-only backend/ data_ingestion/
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+    
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Lint frontend code
+      run: |
+        cd frontend
+        npm run lint || true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-and-deploy:
+    needs: [test-backend, test-frontend, lint-and-format]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Docker image
+      run: |
+        docker build -t shadow-sec:latest .
+    
+    - name: Save Docker image
+      run: |
+        docker save shadow-sec:latest | gzip > shadow-sec-latest.tar.gz
+    
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-image
+        path: shadow-sec-latest.tar.gz
+        retention-days: 7
